@@ -1,0 +1,27 @@
+{
+	admin off
+	auto_https off
+	persist_config off
+	servers {
+		# Railway's edge reaches the service from these ranges.
+		trusted_proxies static 100.64.0.0/10 152.233.0.0/16 127.0.0.1/32 ::1/128
+		trusted_proxies_strict
+		client_ip_headers X-Forwarded-For X-Real-IP
+	}
+}
+
+:{$PORT} {
+	# Unauthenticated health check for Railway.
+	handle /healthz {
+		rewrite * /manifest.json
+		reverse_proxy 127.0.0.1:{$WBO_INTERNAL_PORT}
+	}
+
+	handle {
+		import /tmp/wbo-railway/auth.caddy
+		reverse_proxy 127.0.0.1:{$WBO_INTERNAL_PORT} {
+			# WBO reads the client IP from X-Forwarded-For (WBO_IP_SOURCE) for its per-IP limits.
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+}
